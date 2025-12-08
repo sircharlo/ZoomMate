@@ -75,6 +75,7 @@ TraySetIcon($g_TrayIcon)
 $oUIAutomation = ObjCreateInterface($sCLSID_CUIAutomation, $sIID_IUIAutomation, $dtagIUIAutomation)
 If Not IsObj($oUIAutomation) Then
 	Debug("Failed to create UIAutomation COM object.", "UIA")
+	MsgBox(16 + 262144, "ZoomMate - Critical Error", "Failed to create UIAutomation COM object." & @CRLF & "Please ensure UIA prerequisites are met.")
 	Exit
 EndIf
 Debug("UIAutomation COM created successfully.", "UIA")
@@ -84,6 +85,7 @@ $oUIAutomation.GetRootElement($pDesktop)
 $oDesktop = ObjCreateInterface($pDesktop, $sIID_IUIAutomationElement, $dtagIUIAutomationElement)
 If Not IsObj($oDesktop) Then
 	Debug(t("ERROR_GET_DESKTOP_ELEMENT_FAILED"), "ERROR")
+	MsgBox(16 + 262144, "ZoomMate - Critical Error", t("ERROR_GET_DESKTOP_ELEMENT_FAILED"))
 	Exit
 EndIf
 Debug("Desktop element obtained.", "UIA")
@@ -106,12 +108,17 @@ _InitDayLabelMaps()
 ; MAIN APPLICATION LOOP
 ; ================================================================================================
 
+; Initialize loop variables
+Global $today
+Global $timeNow
+Global $sleepTime = 5000
+
 While True
 	; Handle tray icon events
 	TrayEvent()
 
 	; Check if day has changed to reset automation flags
-	Global $today = @WDAY
+	$today = @WDAY
 	If $today <> $previousRunDay Then
 		Debug("New day detected. Resetting configuration flags.", "VERBOSE")
 		$previousRunDay = $today
@@ -119,17 +126,19 @@ While True
 		$g_DuringMeetingSettingsConfigured = False
 	EndIf
 
-	Global $timeNow = _NowTime(4) ; Get current time in HH:MM format
+	$timeNow = _NowTime(4) ; Get current time in HH:MM format
 
 	; Check if today is a scheduled meeting day
 	If $today = Number(GetUserSetting("MidweekDay")) Then
-		CheckMeetingWindow(GetUserSetting("MidweekTime"))
+		$sleepTime = CheckMeetingWindow(GetUserSetting("MidweekTime"))
 	ElseIf $today = Number(GetUserSetting("WeekendDay")) Then
-		CheckMeetingWindow(GetUserSetting("WeekendTime"))
+		$sleepTime = CheckMeetingWindow(GetUserSetting("WeekendTime"))
 	Else
 		; Not a meeting day - wait 1 minute before checking again
 		Debug(t("INFO_NO_MEETING_SCHEDULED"), "INFO", $g_InitialNotificationWasShown)
 		$g_InitialNotificationWasShown = True
-		Sleep(60000)
+		$sleepTime = 60000
 	EndIf
+
+	Sleep($sleepTime)
 WEnd

@@ -76,10 +76,13 @@ EndFunc   ;==>_SetDuringMeetingSettings
 
 ; Checks current time against meeting schedule and applies appropriate settings
 ; @param $meetingTime - Scheduled meeting time in HH:MM format
+; Checks current time against meeting schedule and applies appropriate settings
+; @param $meetingTime - Scheduled meeting time in HH:MM format
+; @return Integer - Recommended sleep time in milliseconds before next check
 Func CheckMeetingWindow($meetingTime)
-	If $meetingTime = "" Then Return
+	If $meetingTime = "" Then Return 60000
 
-	Local $secondsToWait = 5     ; Default interval between checks
+	Local $nextCheckDelay = 5000     ; Default interval between checks
 
 	; Parse meeting time
 	Local $aParts = StringSplit($meetingTime, ":")
@@ -101,30 +104,45 @@ Func CheckMeetingWindow($meetingTime)
 				$g_PrePostSettingsConfigured = True
 			EndIf
 		EndIf
+		$nextCheckDelay = 5000
 
 	ElseIf $nowMin = ($meetingMin - $MEETING_START_WARNING_MINUTES) Then
 		; Meeting start window (1 minute before meeting)
 		If Not $g_DuringMeetingSettingsConfigured Then
-			If Not _GetZoomWindow() Then Return
+			If Not _GetZoomWindow() Then Return 1000 ; Retry quickly if window not found
 			_SetDuringMeetingSettings()
 			$g_DuringMeetingSettingsConfigured = True
 		EndIf
+		$nextCheckDelay = 5000
 
 	ElseIf $nowMin >= $meetingMin Then
 		; Meeting already started
 		Local $minutesAgo = $nowMin - $meetingMin
 		If $minutesAgo <= 120 Then
 			Debug(t("INFO_MEETING_STARTED_AGO", $minutesAgo), "INFO", $g_InitialNotificationWasShown)
+			$nextCheckDelay = 30000 ; Check every 30 seconds if meeting already started
 		Else
 			Debug(t("INFO_OUTSIDE_MEETING_WINDOW"), "INFO", $g_InitialNotificationWasShown)
+			$nextCheckDelay = 60000 ; Check every minute
 		EndIf
-		$secondsToWait = 30 ; Check every 30 seconds if meeting already started
+
 	Else
 		; Too early - show countdown to meeting
 		Local $minutesLeft = $meetingMin - $nowMin
-		Debug(t("INFO_MEETING_STARTING_IN", $minutesLeft), "INFO", $g_InitialNotificationWasShown)
+
+		If $minutesLeft > 60 Then
+			; If > 1 hour away, check every minute
+			; Only log if it's the first run to show we are alive, otherwise silence
+			If Not $g_InitialNotificationWasShown Then
+				Debug(t("INFO_MEETING_STARTING_IN", $minutesLeft), "INFO")
+			EndIf
+			$nextCheckDelay = 60000
+		Else
+			Debug(t("INFO_MEETING_STARTING_IN", $minutesLeft), "INFO", $g_InitialNotificationWasShown)
+			$nextCheckDelay = 5000
+		EndIf
 	EndIf
 
-	Sleep($secondsToWait * 1000)
 	$g_InitialNotificationWasShown = True
+	Return $nextCheckDelay
 EndFunc   ;==>CheckMeetingWindow
