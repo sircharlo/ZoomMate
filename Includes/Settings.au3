@@ -135,6 +135,24 @@ Func MuteAll()
 	Return DialogClick("zChangeNameWndClass", GetUserSetting("YesValue"))
 EndFunc   ;==>MuteAll
 
+; Best-effort: switch host to gallery view.
+; This uses Zoom's default Alt+F2 shortcut when available.
+Func EnsureGalleryView()
+	Debug("Ensuring gallery view (best effort via Alt+F2).", "INFO")
+	If Not FocusZoomWindow() Then Return False
+	Send("!{F2}")
+	Sleep(300)
+	Return True
+EndFunc   ;==>EnsureGalleryView
+
+; Best-effort spotlight pulse for host video.
+; Current implementation is a safe no-op placeholder until a robust UIA locator is configured.
+Func PulseSpotlightHostVideo($durationMs = 5000)
+	Debug("Spotlight pulse requested for " & $durationMs & "ms. No-op until spotlight selector is configured.", "WARN")
+	Sleep($durationMs)
+	Return True
+EndFunc   ;==>PulseSpotlightHostVideo
+
 ; Clicks a button in a dialog window by class name and button text
 ; @param $ClassName - Dialog window class name
 ; @param $ButtonLabel - Button text to click

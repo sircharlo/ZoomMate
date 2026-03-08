@@ -52,4 +52,16 @@ Once configured, ZoomMate runs automatically in the background:
 - Manages meeting controls throughout the session
 - Access the tray icon anytime to modify settings or view status
 
+### Electron Integration (shortcut-driven scenes)
+
+You can trigger deterministic automation scenes from your Electron app by launching ZoomMate with a scene argument:
+
+```bash
+ZoomMate.exe --scene prepost
+ZoomMate.exe --scene prestart
+```
+
+- `prepost`: Intended for before meeting start and after meeting end. Applies host audio/video off, allows participant unmute, disables screen share, and attempts gallery view.
+- `prestart`: Intended for just before the meeting starts. Applies mute-all, prevents participant unmute, host audio/video on, opens participants panel, snaps window to configured side, and attempts gallery view.
+
 The script is designed to be unobtrusive and requires minimal interaction once initially configured.
