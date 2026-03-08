@@ -948,8 +948,8 @@ Func SaveConfigGUI()
 	; Save day settings (values are 1-7 ints)
 	Local $midWeekDay = $g_UserSettings.Item("MidweekDay")
 	Local $weekendDay = $g_UserSettings.Item("WeekendDay")
-	IniWrite($CONFIG_FILE, "General", "MidweekDay", $midWeekDay)
-	IniWrite($CONFIG_FILE, "General", "WeekendDay", $weekendDay)
+	IniWrite($CONFIG_FILE, "Meetings", "MidweekDay", $midWeekDay)
+	IniWrite($CONFIG_FILE, "Meetings", "WeekendDay", $weekendDay)
 
 	; Update keyboard shortcut
 	_UpdateKeyboardShortcut()
@@ -1065,14 +1065,8 @@ Func TrayEvent()
 			EndIf
 		Case $TRAY_EVENT_SECONDARYDOWN ; Right-click
 			ShowConfigGUI()
-			While $g_ConfigGUI
-				Sleep(100)
-			WEnd
 		Case $TRAY_EVENT_PRIMARYDOUBLE ; Double-click
 			ShowConfigGUI()
-			While $g_ConfigGUI
-				Sleep(100)
-			WEnd
 	EndSwitch
 EndFunc   ;==>TrayEvent
 

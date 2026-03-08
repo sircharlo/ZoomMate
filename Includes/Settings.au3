@@ -24,45 +24,54 @@ EndFunc   ;==>_FindSecuritySettingInternal
 ; @param $bDesired - Desired state (True=enabled, False=disabled)
 Func SetSecuritySetting($sSetting, $bDesired)
 	Debug(t("INFO_SETTING_SECURITY", $sSetting), "INFO")
-	Sleep(3000)
+	Sleep(500)
 	Local $oHostMenu = _OpenHostTools()
 	If Not IsObj($oHostMenu) Then Return False
 
-	Local $oSetting = FindElementByPartialName($sSetting, Default, $oHostMenu)
-	If Not IsObj($oSetting) Then Return
+	; New Zoom layout: click Participants section inside Host Tools panel first (if present)
+	Local $oParticipantsInHostTools = FindElementByPartialName(GetUserSetting("ParticipantValue"), Default, $oHostMenu)
+	If IsObj($oParticipantsInHostTools) Then
+		_ClickElement($oParticipantsInHostTools)
+		Sleep(400)
+	EndIf
 
-	; Check current state
-	Local $sLabel
-	$oSetting.GetCurrentPropertyValue($UIA_NamePropertyId, $sLabel)
+	; Look for the setting in checkbox-first order for newer nested panel layouts
+	Local $aSecurityTypes[4] = [$UIA_CheckBoxControlTypeId, $UIA_ButtonControlTypeId, $UIA_MenuItemControlTypeId, $UIA_TextControlTypeId]
+	Local $oSetting = FindElementByPartialName($sSetting, $aSecurityTypes, $oHostMenu)
+	If Not IsObj($oSetting) Then
+		; fallback search from full zoom window scope
+		$oSetting = FindElementByPartialName($sSetting, $aSecurityTypes, $oZoomWindow)
+		If Not IsObj($oSetting) Then
+			Debug(t("ERROR_SETTING_NOT_FOUND") & ": " & $sSetting, "ERROR")
+			Return False
+		EndIf
+	EndIf
 
-	Debug("Element name: '" & $sLabel & "'", "VERBOSE")
+	; Determine current state. Prefer UIA toggle state when available, fallback to label parsing.
+	Local $bEnabled = False
+	Local $toggleState
+	$oSetting.GetCurrentPropertyValue($UIA_ToggleToggleStatePropertyId, $toggleState)
+	If Not @error And IsNumber($toggleState) Then
+		; ToggleState: 0=Off, 1=On, 2=Indeterminate
+		$bEnabled = ($toggleState = 1)
+	Else
+		Local $sLabel = ""
+		$oSetting.GetCurrentPropertyValue($UIA_NamePropertyId, $sLabel)
+		Local $uncheckedValue = GetUserSetting("UncheckedValue")
+		$bEnabled = (StringInStr(StringLower($sLabel), StringLower($uncheckedValue)) = 0)
+	EndIf
 
-	; Setting is enabled if label does NOT contain unchecked indicator
-	Local $uncheckedValue = GetUserSetting("UncheckedValue")
-	Local $sLabelLower = StringLower($sLabel)
-	Local $uncheckedLower = StringLower($uncheckedValue)
+	Debug("Setting '" & $sSetting & "' | Current: " & ($bEnabled ? "True" : "False") & " | Desired: " & $bDesired, "VERBOSE")
 
-	Debug("Raw label: '" & $sLabel & "'", "VERBOSE")
-	Debug("Label length: " & StringLen($sLabel), "VERBOSE")
-	Debug("Unchecked value: '" & $uncheckedValue & "'", "VERBOSE")
-	Debug("Unchecked length: " & StringLen($uncheckedValue), "VERBOSE")
-	Debug("Label lower: '" & $sLabelLower & "'", "VERBOSE")
-	Debug("Unchecked lower: '" & $uncheckedLower & "'", "VERBOSE")
-
-	; Check if unchecked value appears anywhere in the label (not just word boundaries)
-	Local $bEnabled = (StringInStr($sLabelLower, $uncheckedLower) = 0)
-
-	Debug("StringInStr result: " & StringInStr($sLabelLower, $uncheckedLower), "VERBOSE")
-	Debug("Setting '" & $sLabel & "' | Current: " & ($bEnabled ? "True" : "False") & " | Desired: " & $bDesired, "VERBOSE")
-
-	; Only click if state needs to change
 	If $bEnabled <> $bDesired Then
 		_HoverElement($oSetting, 50)
-		_MoveMouseToStartOfElement($oSetting, True) ; Click at start of element to ensure change
-		Debug("Toggled setting '" & $sSetting & "'", "SETTING CHANGE")
+		_MoveMouseToStartOfElement($oSetting, True)
+		Sleep(250)
+		Debug("Toggled security setting '" & $sSetting & "'", "SETTING CHANGE")
 	Else
 		_CloseHostTools()
 	EndIf
+	Return True
 EndFunc   ;==>SetSecuritySetting
 
 ; Toggles host's audio or video feed on/off
