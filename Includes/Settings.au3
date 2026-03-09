@@ -14,11 +14,6 @@
 ; ZOOM SETTINGS MANAGEMENT FUNCTIONS
 ; ================================================================================================
 
-; Internal function to find security setting (used by cache)
-Func _FindSecuritySettingInternal($sSetting, $oHostMenu)
-	Return FindElementByPartialName($sSetting, Default, $oHostMenu)
-EndFunc   ;==>_FindSecuritySettingInternal
-
 ; Sets a security setting to the desired state (enabled/disabled)
 ; @param $sSetting - Setting name to modify
 ; @param $bDesired - Desired state (True=enabled, False=disabled)
@@ -82,7 +77,6 @@ Func ToggleFeed($feedType, $desiredState)
 	Local $currentlyEnabled = False
 
 	; Controls might be hidden, show them by moving the mouse
-	Debug("Controls might be hidden. Moving mouse to show controls.", "VERBOSE")
 	_MoveMouseToStartOfElement($oZoomWindow)
 
 	If $feedType = "Video" Then

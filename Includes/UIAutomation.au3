@@ -56,11 +56,6 @@ Func _GetZoomWindow()
 	Return $oZoomWindow
 EndFunc   ;==>_GetZoomWindow
 
-; Internal function to find Zoom window (used by cache)
-Func _FindZoomWindowInternal()
-	Return FindElementByClassName("ConfMultiTabContentWndClass", $TreeScope_Children)
-EndFunc   ;==>_FindZoomWindowInternal
-
 ; Focuses the main Zoom meeting window
 ; @return Boolean - True if successful, False otherwise
 Func FocusZoomWindow()
@@ -196,7 +191,7 @@ Func FindElementByPartialName($sPartial, $aControlTypes = Default, $oParent = De
 
 	; Default to button and menu item if not specified
 	If $aControlTypes = Default Then
-		Local $aDefaultTypes[2] = [$UIA_ButtonControlTypeId, $UIA_MenuItemControlTypeId]
+		Local $aDefaultTypes[3] = [$UIA_ButtonControlTypeId, $UIA_MenuItemControlTypeId, $UIA_TabItemControlTypeId]
 		$aControlTypes = $aDefaultTypes
 	EndIf
 
@@ -219,24 +214,28 @@ Func FindElementByPartialName($sPartial, $aControlTypes = Default, $oParent = De
 			$oElements.Length($iCount)
 			Debug("Found " & $iCount & " elements of this type.", "VERBOSE")
 
-			; Check each element for partial name match
+			; Check each element for partial name match; collect names in case we need to dump on miss
+			Local $sNameList = ""
 			For $i = 0 To $iCount - 1
 				Local $pElement
 				$oElements.GetElement($i, $pElement)
 
 				Local $oElement = ObjCreateInterface($pElement, $sIID_IUIAutomationElement, $dtagIUIAutomationElement)
 				If IsObj($oElement) Then
-					; Get element name and check for partial match
 					Local $sName
 					$oElement.GetCurrentPropertyValue($UIA_NamePropertyId, $sName)
-					Debug("Element found with name: '" & $sName & "'", "VERBOSE")
 
 					If StringInStr($sName, $sPartial, $STR_NOCASESENSEBASIC) > 0 Then
 						Debug("Matching element found with name: '" & $sName & "'", "VERBOSE")
 						Return $oElement
 					EndIf
+
+					$sNameList &= "  [" & $i & "] '" & $sName & "'" & @LF
 				EndIf
 			Next
+
+			; Only dump the element list when no match was found
+			Debug("No match in control type " & $iControlType & ". Elements scanned:" & @LF & $sNameList, "VERBOSE")
 		EndIf
 	Next
 
