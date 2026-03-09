@@ -53,12 +53,13 @@ Func _OpenHostTools()
 	If IsObj($oHostToolsButton) Then
 		Debug("Host Tools button found directly; clicking.", "VERBOSE")
 		If Not _ClickElement($oHostToolsButton) Then
-			Debug(t("ERROR_FAILED_CLICK_ELEMENT") & ": 'Host Tools button'", "ERROR")
-			Return False
+			Debug("Direct Host Tools click failed; trying More-menu fallback.", "WARN")
+		Else
+			Sleep(700)
+			$oHostContainer = _FindHostToolsContainer()
+			If IsObj($oHostContainer) Then Return $oHostContainer
+			Debug("Direct Host Tools click did not open a Host Tools container; trying More-menu fallback.", "VERBOSE")
 		EndIf
-		Sleep(700)
-		$oHostContainer = _FindHostToolsContainer()
-		If IsObj($oHostContainer) Then Return $oHostContainer
 	EndIf
 
 	; Second attempt: open More menu then Host Tools
