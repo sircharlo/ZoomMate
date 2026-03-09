@@ -63,14 +63,24 @@ EndFunc   ;==>_FindZoomWindowInternal
 
 ; Focuses the main Zoom meeting window
 ; @return Boolean - True if successful, False otherwise
-Func FocusZoomWindow()
+Func FocusZoomWindow($oWindow = Default)
 	Debug("Focusing Zoom window...", "VERBOSE")
-	Local $oZoomWindow = _GetZoomWindow()
-	If Not IsObj($oZoomWindow) Then Return False
+
+	; Reuse already-resolved window object when provided/cached to avoid refetch races.
+	Local $oWindowToFocus = 0
+	If $oWindow <> Default And IsObj($oWindow) Then
+		$oWindowToFocus = $oWindow
+	ElseIf IsObj($oZoomWindow) Then
+		$oWindowToFocus = $oZoomWindow
+	Else
+		$oWindowToFocus = _GetZoomWindow()
+	EndIf
+
+	If Not IsObj($oWindowToFocus) Then Return False
 
 	; Get the native HWND property from the UIA element
 	Local $hWnd
-	$oZoomWindow.GetCurrentPropertyValue($UIA_NativeWindowHandlePropertyId, $hWnd)
+	$oWindowToFocus.GetCurrentPropertyValue($UIA_NativeWindowHandlePropertyId, $hWnd)
 
 	If $hWnd And $hWnd <> 0 Then
 		; Convert to HWND pointer

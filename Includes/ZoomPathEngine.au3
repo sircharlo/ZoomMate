@@ -26,8 +26,10 @@ EndFunc   ;==>_GetPathError
 ; Ensure Zoom main meeting window exists and is focused.
 Func EnsureZoomMainWindow()
 	$g_LastPathError = ""
-	If Not _GetZoomWindow() Then Return _SetPathError("Zoom main window not found.")
-	If Not FocusZoomWindow() Then Return _SetPathError("Unable to focus Zoom main window.")
+	; Resolve once, then reuse same object for focus to avoid double-fetch timing issues.
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then Return _SetPathError("Zoom main window not found.")
+	If Not FocusZoomWindow($oResolvedZoomWindow) Then Return _SetPathError("Unable to focus Zoom main window.")
 	Return True
 EndFunc   ;==>EnsureZoomMainWindow
 
