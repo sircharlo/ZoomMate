@@ -700,7 +700,8 @@ Func GetElementNamesForField()
 	EndIf
 
 	; Get Zoom window object
-	If Not _GetZoomWindow() Then Return
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then Return
 
 	; Open Host Tools menu to collect names from it too
 	Local $oHostMenu = _OpenHostTools()
@@ -1352,7 +1353,8 @@ Func GetElementNames()
 	Debug("Active Zoom meeting found, collecting element names...", "VERBOSE")
 
 	; Get Zoom window object
-	If Not _GetZoomWindow() Then Return
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then Return
 
 	; Open Host Tools menu to collect names from it too
 	Local $oHostMenu = _OpenHostTools()
@@ -1382,7 +1384,8 @@ EndFunc   ;==>GetElementNames
 
 ; Captures UI names from Zoom + HostTools and saves to a diagnostics file.
 Func RunUIDiagnostics()
-	If Not _GetZoomWindow() Then
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then
 		ReportUserFacingError("UI diagnostics failed: Zoom meeting window not found.")
 		Return
 	EndIf

@@ -45,7 +45,8 @@ Func _OpenHostTools()
 
 	; Controls might be hidden, show them by moving the mouse
 	Debug("Controls might be hidden. Moving mouse to show controls.", "VERBOSE")
-	If Not _GetZoomWindow() Then Return False
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then Return False
 	_MoveMouseToStartOfElement($oZoomWindow, True)
 
 	; First attempt: Host Tools button directly on toolbar

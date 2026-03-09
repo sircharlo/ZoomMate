@@ -30,7 +30,8 @@ Func _LaunchZoom()
 	Debug(t("INFO_ZOOM_LAUNCHED") & ": " & $meetingID, "INFO")
 	Sleep(10000)  ; Wait for Zoom to launch
 
-	If Not _GetZoomWindow() Then Return False
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then Return False
 
 	_SnapZoomWindowToSide()
 
@@ -88,13 +89,15 @@ Func RunAutomationScene($sScene)
 	Switch $sNormalizedScene
 		Case "prepost"
 			Debug("Running automation scene: prepost", "INFO")
-			If Not _GetZoomWindow() Then Return False
+			Local $oResolvedZoomWindow = _GetZoomWindow()
+			If Not IsObj($oResolvedZoomWindow) Then Return False
 			_SetPreAndPostMeetingSettings()
 			Return True
 
 		Case "prestart"
 			Debug("Running automation scene: prestart", "INFO")
-			If Not _GetZoomWindow() Then Return False
+			Local $oResolvedZoomWindow = _GetZoomWindow()
+			If Not IsObj($oResolvedZoomWindow) Then Return False
 			_SetDuringMeetingSettings()
 			Return True
 
@@ -139,7 +142,8 @@ Func CheckMeetingWindow($meetingTime)
 	ElseIf $nowMin = ($meetingMin - $MEETING_START_WARNING_MINUTES) Then
 		; Meeting start window (1 minute before meeting)
 		If Not $g_DuringMeetingSettingsConfigured Then
-			If Not _GetZoomWindow() Then Return 1000 ; Retry quickly if window not found
+			Local $oResolvedZoomWindow = _GetZoomWindow()
+			If Not IsObj($oResolvedZoomWindow) Then Return 1000 ; Retry quickly if window not found
 			_SetDuringMeetingSettings()
 			$g_DuringMeetingSettingsConfigured = True
 		EndIf
