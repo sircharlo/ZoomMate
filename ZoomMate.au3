@@ -56,6 +56,7 @@ Global Const $MF_BYCOMMAND = 0x00000000
 #include "Includes\UIAutomation.au3"
 #include "Includes\ElementActions.au3"
 #include "Includes\ZoomOperations.au3"
+#include "Includes\ZoomPathEngine.au3"
 #include "Includes\KeyboardShortcuts.au3"
 #include "Includes\Settings.au3"
 #include "Includes\MeetingAutomation.au3"
@@ -66,6 +67,7 @@ Global Const $MF_BYCOMMAND = 0x00000000
 
 ; Sets up tray icon and handles tray events
 TraySetIcon($g_TrayIcon)
+TraySetState($TRAY_ICONSTATE_SHOW)
 
 ; ================================================================================================
 ; UIAUTOMATION COM INITIALIZATION
@@ -103,6 +105,23 @@ _InitDayLabelMaps()
 ; _GetZoomWindow()
 ; FocusZoomWindow()
 ; _SetDuringMeetingSettings()
+
+
+; ================================================================================================
+; COMMAND-LINE SCENE TRIGGERING (for Electron integration)
+; ================================================================================================
+; Usage examples:
+;   ZoomMate.exe --scene prepost
+;   ZoomMate.exe --scene prestart
+If $CmdLine[0] >= 2 And StringLower($CmdLine[1]) = "--scene" Then
+	Debug("Command-line scene requested: " & $CmdLine[2], "INFO")
+	If RunAutomationScene($CmdLine[2]) Then
+		Exit
+	Else
+		Debug("Scene execution failed or scene name invalid: " & $CmdLine[2], "ERROR")
+		Exit 1
+	EndIf
+EndIf
 
 ; ================================================================================================
 ; MAIN APPLICATION LOOP

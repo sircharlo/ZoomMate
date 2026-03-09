@@ -12,18 +12,29 @@
 #include "ru.au3"
 #include "uk.au3"
 
-Global Const $TRANSLATIONS = ObjCreate("Scripting.Dictionary")
+Global $TRANSLATIONS = 0
 
 ; Initialize translations for each language
 _InitializeTranslations()
 
 Func _InitializeTranslations()
-	; Add each language's translations to the main dictionary
+	; Create dictionary lazily and make initialization idempotent.
+	If Not IsObj($TRANSLATIONS) Then
+		$TRANSLATIONS = ObjCreate("Scripting.Dictionary")
+		If Not IsObj($TRANSLATIONS) Then
+			Return SetError(1, 0, 0)
+		EndIf
+	EndIf
+
+	; Avoid duplicate-key runtime errors when this function is called more than once.
+	If $TRANSLATIONS.Exists("en") Then Return True
+
 	$TRANSLATIONS.Add("en", $TRANSLATIONS_EN)
 	$TRANSLATIONS.Add("es", $TRANSLATIONS_ES)
 	$TRANSLATIONS.Add("fr", $TRANSLATIONS_FR)
 	$TRANSLATIONS.Add("ru", $TRANSLATIONS_RU)
 	$TRANSLATIONS.Add("uk", $TRANSLATIONS_UK)
+	Return True
 EndFunc   ;==>_InitializeTranslations
 
 ; Helper function to get translations for a specific language
@@ -31,7 +42,7 @@ EndFunc   ;==>_InitializeTranslations
 ; @return Object - Dictionary containing translations for the specified language
 Func _GetLanguageTranslations($langCode)
 	; Ensure translations are initialized
-	If $TRANSLATIONS.Count = 0 Then _InitializeTranslations()
+	If (Not IsObj($TRANSLATIONS)) Or $TRANSLATIONS.Count = 0 Then _InitializeTranslations()
 
 	If $TRANSLATIONS.Exists($langCode) Then
 		Return $TRANSLATIONS.Item($langCode)
@@ -46,12 +57,12 @@ EndFunc   ;==>_GetLanguageTranslations
 Func _ListAvailableLanguageNames()
 	Local $list = ""
 	; Ensure translations are initialized
-	If $TRANSLATIONS.Count = 0 Then _InitializeTranslations()
+	If (Not IsObj($TRANSLATIONS)) Or $TRANSLATIONS.Count = 0 Then _InitializeTranslations()
 
 	For $langCode In $TRANSLATIONS.Keys
-		Local $TRANSLATIONS = _GetLanguageTranslations($langCode)
-		If $TRANSLATIONS.Exists("LANGNAME") Then
-			Local $langName = $TRANSLATIONS.Item("LANGNAME")
+		Local $oLangTranslations = _GetLanguageTranslations($langCode)
+		If $oLangTranslations.Exists("LANGNAME") Then
+			Local $langName = $oLangTranslations.Item("LANGNAME")
 			$list &= ($list = "" ? $langName : "|" & $langName)
 		EndIf
 	Next
@@ -63,11 +74,11 @@ EndFunc   ;==>_ListAvailableLanguageNames
 ; @return String - Language code or empty string if not found
 Func _GetLanguageCodeFromDisplayName($displayName)
 	; Ensure translations are initialized
-	If $TRANSLATIONS.Count = 0 Then _InitializeTranslations()
+	If (Not IsObj($TRANSLATIONS)) Or $TRANSLATIONS.Count = 0 Then _InitializeTranslations()
 
 	For $langCode In $TRANSLATIONS.Keys
-		Local $TRANSLATIONS = _GetLanguageTranslations($langCode)
-		If $TRANSLATIONS.Exists("LANGNAME") And $TRANSLATIONS.Item("LANGNAME") = $displayName Then
+		Local $oLangTranslations = _GetLanguageTranslations($langCode)
+		If $oLangTranslations.Exists("LANGNAME") And $oLangTranslations.Item("LANGNAME") = $displayName Then
 			Return $langCode
 		EndIf
 	Next
@@ -78,9 +89,9 @@ EndFunc   ;==>_GetLanguageCodeFromDisplayName
 ; @param $code - Language code (e.g., "en", "es")
 ; @return String - Display name or the code itself if not found
 Func _GetLanguageDisplayName($code)
-	Local $TRANSLATIONS = _GetLanguageTranslations($code)
-	If $TRANSLATIONS.Exists("LANGNAME") Then
-		Return $TRANSLATIONS.Item("LANGNAME")
+	Local $oLangTranslations = _GetLanguageTranslations($code)
+	If $oLangTranslations.Exists("LANGNAME") Then
+		Return $oLangTranslations.Item("LANGNAME")
 	EndIf
 	Return $code
 EndFunc   ;==>_GetLanguageDisplayName
@@ -95,10 +106,10 @@ Func t($key, $p0 = Default, $p1 = Default, $p2 = Default)
 	If $currentLang = "" Then $currentLang = "en"
 
 	; Get translations for the current language
-	Local $TRANSLATIONS = _GetLanguageTranslations($currentLang)
+	Local $oLangTranslations = _GetLanguageTranslations($currentLang)
 
-	If $TRANSLATIONS.Exists($key) Then
-		Local $s = $TRANSLATIONS.Item($key)
+	If $oLangTranslations.Exists($key) Then
+		Local $s = $oLangTranslations.Item($key)
 		; Replace placeholders if provided
 		If $p0 <> Default Then $s = StringReplace($s, "{0}", $p0, 0, $STR_CASESENSE)
 		If $p1 <> Default Then $s = StringReplace($s, "{1}", $p1, 0, $STR_CASESENSE)
