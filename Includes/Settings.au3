@@ -9,6 +9,7 @@
 #include "UIAutomation.au3"
 #include "ElementActions.au3"
 #include "ZoomOperations.au3"
+#include "ZoomPathEngine.au3"
 
 ; ================================================================================================
 ; ZOOM SETTINGS MANAGEMENT FUNCTIONS
@@ -19,50 +20,119 @@ Func _FindSecuritySettingInternal($sSetting, $oHostMenu)
 	Return FindElementByPartialName($sSetting, Default, $oHostMenu)
 EndFunc   ;==>_FindSecuritySettingInternal
 
+; Finds first matching element from a pipe-separated list of partial names.
+Func _FindElementByAnyName($sCandidates, $aControlTypes, $oParent)
+	Local $aNames = StringSplit($sCandidates, "|", 2)
+	For $i = 0 To UBound($aNames) - 1
+		Local $name = StringStripWS($aNames[$i], 3)
+		If $name = "" Then ContinueLoop
+		Local $o = FindElementByPartialName($name, $aControlTypes, $oParent)
+		If IsObj($o) Then Return $o
+	Next
+	Return 0
+EndFunc   ;==>_FindElementByAnyName
+
+; Sets "Who can share" via Share Options -> Host tools for sharing flow.
+; @param $bAllowParticipants - True to allow all participants, False for host-only
+Func SetShareScreenPermission($bAllowParticipants)
+	If Not EnsureZoomMainWindow() Then Return False
+
+	; Step 1: open Share options menu
+	Local $aMenuItemTypes[1] = [$UIA_MenuItemControlTypeId]
+	Local $shareOptionsCandidates = GetUserSetting("ShareOptionsValue")
+	If $shareOptionsCandidates = "" Then $shareOptionsCandidates = "Option partage|Share options"
+	Local $oShareOptions = _FindElementByAnyName($shareOptionsCandidates, $aMenuItemTypes, $oZoomWindow)
+	If Not IsObj($oShareOptions) Then
+		ReportUserFacingError("Share options button/menu not found.")
+		Return False
+	EndIf
+	If Not _ClickElement($oShareOptions, True) Then Return False
+	Sleep(350)
+
+	; Step 2: click Host tools for sharing item in popup menu
+	Local $oShareMenu = FindElementByClassName("WCN_ModelessWnd", Default, $oZoomWindow)
+	If Not IsObj($oShareMenu) Then
+		ReportUserFacingError("Share options menu did not open.")
+		Return False
+	EndIf
+	Local $hostToolsShareCandidates = GetUserSetting("HostToolsForShareValue")
+	If $hostToolsShareCandidates = "" Then $hostToolsShareCandidates = "Outils de l’hôte pour le partage|Host tools for sharing"
+	Local $oHostToolsShare = _FindElementByAnyName($hostToolsShareCandidates, $aMenuItemTypes, $oShareMenu)
+	If Not IsObj($oHostToolsShare) Then
+		ReportUserFacingError("'Host tools for sharing' item not found.")
+		Return False
+	EndIf
+	If Not _ClickElement($oHostToolsShare, True) Then Return False
+	Sleep(500)
+
+	; Step 3: select desired item from 'Who can share' combobox/list
+	Local $aComboTypes[1] = [$UIA_ComboBoxControlTypeId]
+	Local $comboCandidates = GetUserSetting("WhoCanShareComboValue")
+	If $comboCandidates = "" Then $comboCandidates = "Qui peut partager|Who can share"
+	Local $oWhoCanShareCombo = _FindElementByAnyName($comboCandidates, $aComboTypes, $oZoomWindow)
+	If IsObj($oWhoCanShareCombo) Then _ClickElement($oWhoCanShareCombo, True)
+	Sleep(300)
+
+	Local $aListItemTypes[1] = [$UIA_ListItemControlTypeId]
+	Local $targetCandidates = ""
+	If $bAllowParticipants Then
+		$targetCandidates = GetUserSetting("WhoCanShareParticipantsValue")
+		If $targetCandidates = "" Then $targetCandidates = "Tous les participants|All participants"
+	Else
+		$targetCandidates = GetUserSetting("WhoCanShareHostOnlyValue")
+		If $targetCandidates = "" Then $targetCandidates = "Hôte seulement|Host only"
+	EndIf
+	Local $oTarget = _FindElementByAnyName($targetCandidates, $aListItemTypes, $oZoomWindow)
+	If Not IsObj($oTarget) Then
+		ReportUserFacingError("Could not find target 'Who can share' option: " & $targetCandidates)
+		Return False
+	EndIf
+	If Not _ClickElement($oTarget, True) Then Return False
+
+	Return True
+EndFunc   ;==>SetShareScreenPermission
+
 ; Sets a security setting to the desired state (enabled/disabled)
 ; @param $sSetting - Setting name to modify
 ; @param $bDesired - Desired state (True=enabled, False=disabled)
 Func SetSecuritySetting($sSetting, $bDesired)
 	Debug(t("INFO_SETTING_SECURITY", $sSetting), "INFO")
-	Sleep(3000)
-	Local $oHostMenu = _OpenHostTools()
-	If Not IsObj($oHostMenu) Then Return False
 
-	Local $oSetting = FindElementByPartialName($sSetting, Default, $oHostMenu)
-	If Not IsObj($oSetting) Then Return
-
-	; Check current state
-	Local $sLabel
-	$oSetting.GetCurrentPropertyValue($UIA_NamePropertyId, $sLabel)
-
-	Debug("Element name: '" & $sLabel & "'", "VERBOSE")
-
-	; Setting is enabled if label does NOT contain unchecked indicator
-	Local $uncheckedValue = GetUserSetting("UncheckedValue")
-	Local $sLabelLower = StringLower($sLabel)
-	Local $uncheckedLower = StringLower($uncheckedValue)
-
-	Debug("Raw label: '" & $sLabel & "'", "VERBOSE")
-	Debug("Label length: " & StringLen($sLabel), "VERBOSE")
-	Debug("Unchecked value: '" & $uncheckedValue & "'", "VERBOSE")
-	Debug("Unchecked length: " & StringLen($uncheckedValue), "VERBOSE")
-	Debug("Label lower: '" & $sLabelLower & "'", "VERBOSE")
-	Debug("Unchecked lower: '" & $uncheckedLower & "'", "VERBOSE")
-
-	; Check if unchecked value appears anywhere in the label (not just word boundaries)
-	Local $bEnabled = (StringInStr($sLabelLower, $uncheckedLower) = 0)
-
-	Debug("StringInStr result: " & StringInStr($sLabelLower, $uncheckedLower), "VERBOSE")
-	Debug("Setting '" & $sLabel & "' | Current: " & ($bEnabled ? "True" : "False") & " | Desired: " & $bDesired, "VERBOSE")
-
-	; Only click if state needs to change
-	If $bEnabled <> $bDesired Then
-		_HoverElement($oSetting, 50)
-		_MoveMouseToStartOfElement($oSetting, True) ; Click at start of element to ensure change
-		Debug("Toggled setting '" & $sSetting & "'", "SETTING CHANGE")
-	Else
-		_CloseHostTools()
+	; Share-screen permission is now under Share Options -> Host tools for sharing -> Who can share.
+	If $sSetting = GetUserSetting("ZoomSecurityShareScreenValue") Then
+		Return SetShareScreenPermission($bDesired)
 	EndIf
+
+	Local $oSetting = EnsureSecurityToggleVisible($sSetting)
+	If Not IsObj($oSetting) Then Return False
+
+	; Determine current state. Prefer UIA toggle state when available, fallback to label parsing.
+	Local $bEnabled = False
+	Local $toggleState
+	$oSetting.GetCurrentPropertyValue($UIA_ToggleToggleStatePropertyId, $toggleState)
+	If Not @error And IsNumber($toggleState) Then
+		$bEnabled = ($toggleState = 1) ; 0=Off, 1=On, 2=Indeterminate
+	Else
+		Local $sLabel = ""
+		$oSetting.GetCurrentPropertyValue($UIA_NamePropertyId, $sLabel)
+		Local $uncheckedValue = GetUserSetting("UncheckedValue")
+		$bEnabled = (StringInStr(StringLower($sLabel), StringLower($uncheckedValue)) = 0)
+	EndIf
+
+	If $bEnabled = $bDesired Then
+		Debug("Security setting already in desired state: " & $sSetting, "VERBOSE")
+		_CloseHostTools()
+		Return True
+	EndIf
+
+	_HoverElement($oSetting, 50)
+	If Not _MoveMouseToStartOfElement($oSetting, True) Then
+		ReportUserFacingError("Could not toggle security setting: " & $sSetting)
+		Return False
+	EndIf
+	Sleep(250)
+	Debug("Toggled security setting '" & $sSetting & "'", "SETTING CHANGE")
+	Return True
 EndFunc   ;==>SetSecuritySetting
 
 ; Toggles host's audio or video feed on/off
@@ -134,6 +204,24 @@ Func MuteAll()
 	; Confirm the action in dialog
 	Return DialogClick("zChangeNameWndClass", GetUserSetting("YesValue"))
 EndFunc   ;==>MuteAll
+
+; Best-effort: switch host to gallery view.
+; This uses Zoom's default Alt+F2 shortcut when available.
+Func EnsureGalleryView()
+	Debug("Ensuring gallery view (best effort via Alt+F2).", "INFO")
+	If Not FocusZoomWindow() Then Return False
+	Send("!{F2}")
+	Sleep(300)
+	Return True
+EndFunc   ;==>EnsureGalleryView
+
+; Best-effort spotlight pulse for host video.
+; Current implementation is a safe no-op placeholder until a robust UIA locator is configured.
+Func PulseSpotlightHostVideo($durationMs = 5000)
+	Debug("Spotlight pulse requested for " & $durationMs & "ms. No-op until spotlight selector is configured.", "WARN")
+	Sleep($durationMs)
+	Return True
+EndFunc   ;==>PulseSpotlightHostVideo
 
 ; Clicks a button in a dialog window by class name and button text
 ; @param $ClassName - Dialog window class name

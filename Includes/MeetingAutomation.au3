@@ -30,7 +30,8 @@ Func _LaunchZoom()
 	Debug(t("INFO_ZOOM_LAUNCHED") & ": " & $meetingID, "INFO")
 	Sleep(10000)  ; Wait for Zoom to launch
 
-	If Not _GetZoomWindow() Then Return False
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then Return False
 
 	_SnapZoomWindowToSide()
 
@@ -51,6 +52,7 @@ Func _SetPreAndPostMeetingSettings()
 	SetSecuritySetting(GetUserSetting("ZoomSecurityShareScreenValue"), False)   ; Prevent screen sharing
 	ToggleFeed("Audio", False)                  ; Turn off host audio
 	ToggleFeed("Video", False)                  ; Turn off host video
+	EnsureGalleryView()
 	; TODO: Unmute All function
 	Debug(t("INFO_CONFIG_BEFORE_AFTER_DONE"), "INFO")
 EndFunc   ;==>_SetPreAndPostMeetingSettings
@@ -71,8 +73,39 @@ Func _SetDuringMeetingSettings()
 	MuteAll()                                   ; Mute all participants
 	ToggleFeed("Audio", True)                   ; Turn on host audio
 	ToggleFeed("Video", True)                   ; Turn on host video
+	PulseSpotlightHostVideo(5000)
+	EnsureGalleryView()
+	_OpenParticipantsPanel()
+	_SnapZoomWindowToSide()
 	Debug(t("INFO_CONFIG_DURING_MEETING_DONE"), "INFO")
 EndFunc   ;==>_SetDuringMeetingSettings
+
+; Runs a named automation scene (useful for external trigger integrations such as Electron)
+; @param $sScene - Supported values: "prepost", "prestart"
+; @return Boolean - True when a valid scene was executed
+Func RunAutomationScene($sScene)
+	Local $sNormalizedScene = StringLower(StringStripWS($sScene, 3))
+
+	Switch $sNormalizedScene
+		Case "prepost"
+			Debug("Running automation scene: prepost", "INFO")
+			Local $oResolvedZoomWindow = _GetZoomWindow()
+			If Not IsObj($oResolvedZoomWindow) Then Return False
+			_SetPreAndPostMeetingSettings()
+			Return True
+
+		Case "prestart"
+			Debug("Running automation scene: prestart", "INFO")
+			Local $oResolvedZoomWindow = _GetZoomWindow()
+			If Not IsObj($oResolvedZoomWindow) Then Return False
+			_SetDuringMeetingSettings()
+			Return True
+
+		Case Else
+			Debug("Unknown automation scene requested: '" & $sScene & "'", "WARN")
+			Return False
+	EndSwitch
+EndFunc   ;==>RunAutomationScene
 
 ; Checks current time against meeting schedule and applies appropriate settings
 ; @param $meetingTime - Scheduled meeting time in HH:MM format
@@ -109,7 +142,8 @@ Func CheckMeetingWindow($meetingTime)
 	ElseIf $nowMin = ($meetingMin - $MEETING_START_WARNING_MINUTES) Then
 		; Meeting start window (1 minute before meeting)
 		If Not $g_DuringMeetingSettingsConfigured Then
-			If Not _GetZoomWindow() Then Return 1000 ; Retry quickly if window not found
+			Local $oResolvedZoomWindow = _GetZoomWindow()
+			If Not IsObj($oResolvedZoomWindow) Then Return 1000 ; Retry quickly if window not found
 			_SetDuringMeetingSettings()
 			$g_DuringMeetingSettingsConfigured = True
 		EndIf

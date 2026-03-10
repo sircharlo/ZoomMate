@@ -24,6 +24,22 @@ Func LoadMeetingConfig()
 	$g_UserSettings.Add("MidweekTime", _UTF8ToString(IniRead($CONFIG_FILE, "Meetings", "MidweekTime", "")))
 	$g_UserSettings.Add("WeekendDay", _UTF8ToString(IniRead($CONFIG_FILE, "Meetings", "WeekendDay", "")))
 	$g_UserSettings.Add("WeekendTime", _UTF8ToString(IniRead($CONFIG_FILE, "Meetings", "WeekendTime", "")))
+
+	; Backward-compat migration for versions that incorrectly wrote day fields under [General]
+	If $g_UserSettings.Item("MidweekDay") = "" Then
+		Local $legacyMidweekDay = _UTF8ToString(IniRead($CONFIG_FILE, "General", "MidweekDay", ""))
+		If $legacyMidweekDay <> "" Then
+			$g_UserSettings.Item("MidweekDay") = $legacyMidweekDay
+			IniWrite($CONFIG_FILE, "Meetings", "MidweekDay", $legacyMidweekDay)
+		EndIf
+	EndIf
+	If $g_UserSettings.Item("WeekendDay") = "" Then
+		Local $legacyWeekendDay = _UTF8ToString(IniRead($CONFIG_FILE, "General", "WeekendDay", ""))
+		If $legacyWeekendDay <> "" Then
+			$g_UserSettings.Item("WeekendDay") = $legacyWeekendDay
+			IniWrite($CONFIG_FILE, "Meetings", "WeekendDay", $legacyWeekendDay)
+		EndIf
+	EndIf
 	$g_UserSettings.Add("HostToolsValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "HostToolsValue", "")))
 	$g_UserSettings.Add("ParticipantValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "ParticipantValue", "")))
 	$g_UserSettings.Add("MuteAllValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "MuteAllValue", "")))
@@ -36,6 +52,12 @@ Func LoadMeetingConfig()
 	$g_UserSettings.Add("StartVideoValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "StartVideoValue", "")))
 	$g_UserSettings.Add("ZoomSecurityUnmuteValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "ZoomSecurityUnmuteValue", "")))
 	$g_UserSettings.Add("ZoomSecurityShareScreenValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "ZoomSecurityShareScreenValue", "")))
+	; Optional advanced labels for share-screen permission flow
+	$g_UserSettings.Add("ShareOptionsValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "ShareOptionsValue", "")))
+	$g_UserSettings.Add("HostToolsForShareValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "HostToolsForShareValue", "")))
+	$g_UserSettings.Add("WhoCanShareComboValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "WhoCanShareComboValue", "")))
+	$g_UserSettings.Add("WhoCanShareHostOnlyValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "WhoCanShareHostOnlyValue", "")))
+	$g_UserSettings.Add("WhoCanShareParticipantsValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "WhoCanShareParticipantsValue", "")))
 	$g_UserSettings.Add("KeyboardShortcut", _UTF8ToString(IniRead($CONFIG_FILE, "General", "KeyboardShortcut", "")))
 
 	; Window snapping preference (Disabled|Left|Right)

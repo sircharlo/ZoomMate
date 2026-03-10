@@ -52,4 +52,37 @@ Once configured, ZoomMate runs automatically in the background:
 - Manages meeting controls throughout the session
 - Access the tray icon anytime to modify settings or view status
 
+### Electron Integration (shortcut-driven scenes)
+
+You can trigger deterministic automation scenes from your Electron app by launching ZoomMate with a scene argument:
+
+```bash
+ZoomMate.exe --scene prepost
+ZoomMate.exe --scene prestart
+```
+
+- `prepost`: Intended for before meeting start and after meeting end. Applies host audio/video off, allows participant unmute, disables screen share, and attempts gallery view.
+- `prestart`: Intended for just before the meeting starts. Applies mute-all, prevents participant unmute, host audio/video on, opens participants panel, snaps window to configured side, and attempts gallery view.
+
 The script is designed to be unobtrusive and requires minimal interaction once initially configured.
+
+
+## Reliability & Future-Proofing Toolkit
+
+ZoomMate now includes a deterministic path engine and diagnostics helpers so UI changes in Zoom can be handled faster:
+
+- **Path engine**: each action drills through required parent paths first (Zoom window -> More -> Host Tools -> Participants -> setting).
+- **User-visible failures**: if a required panel/toggle cannot be found, ZoomMate reports the error in GUI/tray and stops that task.
+- **UI Diagnostics button**: captures discoverable Zoom element names into `zoom_ui_diagnostics.txt`.
+- **Path Wizard button**: lets operators re-capture and store key path labels (More, Host Tools, Participants) after Zoom UI updates.
+
+
+### State Profiler Wizard
+
+Use **State Profiler** in the settings GUI to guide Zoom through key states and automatically capture signatures for each state.
+
+Captured outputs:
+- `zoom_state_profiles.ini` (state flags)
+- `zoom_state_profiles.txt` (visible named elements by control type)
+
+This is intended to make future checks deterministic (for example: detect if Participants panel is already open before trying to open it again).

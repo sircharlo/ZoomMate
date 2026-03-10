@@ -18,6 +18,7 @@
 #include "UIAutomation.au3"
 #include "Utils.au3"
 #include "ZoomOperations.au3"
+#include "StateProfiler.au3"
 
 
 ; ================================================================================================
@@ -186,6 +187,9 @@ Func ShowConfigGUI()
 	; Action buttons (adjusted for wider GUI)
 	Global $idSaveBtn = GUICtrlCreateButton(t("BTN_SAVE"), 10, $currentY, 100, 30)
 	Global $idQuitBtn = GUICtrlCreateButton(t("BTN_QUIT"), 120, $currentY, 100, 30)
+	$g_DiagnosticsBtn = GUICtrlCreateButton("UI Diagnostics", 230, $currentY, 110, 30)
+	$g_PathWizardBtn = GUICtrlCreateButton("Path Wizard", 350, $currentY, 100, 30)
+	$g_StateProfilerBtn = GUICtrlCreateButton("State Profiler", 460, $currentY, 110, 30)
 	$currentY += 30
 
 
@@ -196,6 +200,9 @@ Func ShowConfigGUI()
 	; Set button event handlers
 	GUICtrlSetOnEvent($idSaveBtn, "SaveConfigGUI")
 	GUICtrlSetOnEvent($idQuitBtn, "QuitApp")
+	GUICtrlSetOnEvent($g_DiagnosticsBtn, "RunUIDiagnostics")
+	GUICtrlSetOnEvent($g_PathWizardBtn, "RunPathCaptureWizard")
+	GUICtrlSetOnEvent($g_StateProfilerBtn, "RunStateTrainingWizard")
 
 	; ================================================================================================
 	; DYNAMIC HEIGHT CALCULATION AND GUI RESIZING
@@ -696,7 +703,8 @@ Func GetElementNamesForField()
 	EndIf
 
 	; Get Zoom window object
-	If Not _GetZoomWindow() Then Return
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then Return
 
 	; Open Host Tools menu to collect names from it too
 	Local $oHostMenu = _OpenHostTools()
@@ -948,8 +956,8 @@ Func SaveConfigGUI()
 	; Save day settings (values are 1-7 ints)
 	Local $midWeekDay = $g_UserSettings.Item("MidweekDay")
 	Local $weekendDay = $g_UserSettings.Item("WeekendDay")
-	IniWrite($CONFIG_FILE, "General", "MidweekDay", $midWeekDay)
-	IniWrite($CONFIG_FILE, "General", "WeekendDay", $weekendDay)
+	IniWrite($CONFIG_FILE, "Meetings", "MidweekDay", $midWeekDay)
+	IniWrite($CONFIG_FILE, "Meetings", "WeekendDay", $weekendDay)
 
 	; Update keyboard shortcut
 	_UpdateKeyboardShortcut()
@@ -1051,7 +1059,7 @@ Func TrayEvent()
 	Switch $msg
 		Case 0
 			Return
-		Case $TRAY_EVENT_PRIMARYDOWN
+		Case $TRAY_EVENT_PRIMARYDOWN, $TRAY_EVENT_PRIMARYUP
 			; Show/Hide config on click
 			If $g_ConfigGUI Then
 				If BitAND(WinGetState($g_ConfigGUI), 2) Then ; Visible
@@ -1063,16 +1071,10 @@ Func TrayEvent()
 			Else
 				ShowConfigGUI()
 			EndIf
-		Case $TRAY_EVENT_SECONDARYDOWN ; Right-click
+		Case $TRAY_EVENT_SECONDARYDOWN, $TRAY_EVENT_SECONDARYUP ; Right-click
 			ShowConfigGUI()
-			While $g_ConfigGUI
-				Sleep(100)
-			WEnd
 		Case $TRAY_EVENT_PRIMARYDOUBLE ; Double-click
 			ShowConfigGUI()
-			While $g_ConfigGUI
-				Sleep(100)
-			WEnd
 	EndSwitch
 EndFunc   ;==>TrayEvent
 
@@ -1354,7 +1356,8 @@ Func GetElementNames()
 	Debug("Active Zoom meeting found, collecting element names...", "VERBOSE")
 
 	; Get Zoom window object
-	If Not _GetZoomWindow() Then Return
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then Return
 
 	; Open Host Tools menu to collect names from it too
 	Local $oHostMenu = _OpenHostTools()
@@ -1380,3 +1383,57 @@ Func GetElementNames()
 
 	Debug("Element names collection completed", "VERBOSE")
 EndFunc   ;==>GetElementNames
+
+
+; Captures UI names from Zoom + HostTools and saves to a diagnostics file.
+Func RunUIDiagnostics()
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then
+		ReportUserFacingError("UI diagnostics failed: Zoom meeting window not found.")
+		Return
+	EndIf
+	Local $oHostMenu = _OpenHostTools()
+	Local $aNames = GetElementNamesFromWindows($oZoomWindow, $oHostMenu)
+	If UBound($aNames) = 0 Then
+		ReportUserFacingError("UI diagnostics found no element names.")
+		Return
+	EndIf
+
+	Local $outFile = @ScriptDir & "\zoom_ui_diagnostics.txt"
+	Local $h = FileOpen($outFile, $FO_OVERWRITE + $FO_CREATEPATH)
+	If $h = -1 Then
+		ReportUserFacingError("Could not write diagnostics file: " & $outFile)
+		Return
+	EndIf
+	FileWriteLine($h, "ZoomMate UI Diagnostics - " & @YEAR & "-" & @MON & "-" & @MDAY & " " & @HOUR & ":" & @MIN & ":" & @SEC)
+	For $i = 0 To UBound($aNames) - 1
+		FileWriteLine($h, $aNames[$i])
+	Next
+	FileClose($h)
+	MsgBox(64 + 262144, "ZoomMate", "Diagnostics saved:" & @CRLF & $outFile)
+EndFunc   ;==>RunUIDiagnostics
+
+; Lightweight wizard to capture panel/button relationship labels and persist to ini.
+Func RunPathCaptureWizard()
+	Local $moreLabel = InputBox("Path Wizard", "Label for More button/menu item:", GetUserSetting("MoreMeetingControlsValue"))
+	If @error Then Return
+	Local $hostToolsLabel = InputBox("Path Wizard", "Label for Host Tools button/item:", GetUserSetting("HostToolsValue"))
+	If @error Then Return
+	Local $participantsLabel = InputBox("Path Wizard", "Label for Participants section/button:", GetUserSetting("ParticipantValue"))
+	If @error Then Return
+
+	IniWrite($CONFIG_FILE, "UiPathMap", "MoreButton", _StringToUTF8($moreLabel))
+	IniWrite($CONFIG_FILE, "UiPathMap", "HostToolsButton", _StringToUTF8($hostToolsLabel))
+	IniWrite($CONFIG_FILE, "UiPathMap", "ParticipantsNode", _StringToUTF8($participantsLabel))
+
+	; Also update standard labels used by automation.
+	$g_UserSettings.Item("MoreMeetingControlsValue") = $moreLabel
+	$g_UserSettings.Item("HostToolsValue") = $hostToolsLabel
+	$g_UserSettings.Item("ParticipantValue") = $participantsLabel
+	IniWrite($CONFIG_FILE, "ZoomStrings", "MoreMeetingControlsValue", _StringToUTF8($moreLabel))
+	IniWrite($CONFIG_FILE, "ZoomStrings", "HostToolsValue", _StringToUTF8($hostToolsLabel))
+	IniWrite($CONFIG_FILE, "ZoomStrings", "ParticipantValue", _StringToUTF8($participantsLabel))
+
+	CheckConfigFields()
+	MsgBox(64 + 262144, "ZoomMate", "Path map saved. You can re-run this anytime after Zoom UI changes.")
+EndFunc   ;==>RunPathCaptureWizard

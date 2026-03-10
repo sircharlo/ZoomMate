@@ -16,73 +16,92 @@
 ; ZOOM-SPECIFIC UI INTERACTION FUNCTIONS
 ; ================================================================================================
 
+
+; Attempts to locate the Host Tools container in either legacy flyout or new side panel layouts.
+; @return Object - Host tools container scope or 0
+Func _FindHostToolsContainer()
+	If Not IsObj($oZoomWindow) Then Return 0
+
+	; Legacy popup/flyout menu
+	Local $oHostMenu = FindElementByClassName("WCN_ModelessWnd", Default, $oZoomWindow)
+	If IsObj($oHostMenu) Then Return $oHostMenu
+
+	; New host tools panel often appears as Pane/Group/Window labeled like Host Tools
+	Local $aPanelTypes[3] = [$UIA_PaneControlTypeId, $UIA_GroupControlTypeId, $UIA_WindowControlTypeId]
+	Local $oHostPanel = FindElementByPartialName(GetUserSetting("HostToolsValue"), $aPanelTypes, $oZoomWindow)
+	If IsObj($oHostPanel) Then Return $oHostPanel
+
+	Return 0
+EndFunc   ;==>_FindHostToolsContainer
+
 ; Opens the Host Tools menu in Zoom
 ; @return Object - Host menu object or False if failed
 Func _OpenHostTools()
 	If Not IsObj($oZoomWindow) Then Return False
 
-	; Check if host menu is already open
-	Local $oHostMenu = FindElementByClassName("WCN_ModelessWnd", Default, $oZoomWindow)
-	If Not IsObj($oHostMenu) Then
+	; Check if host tools are already open (legacy or new layout)
+	Local $oHostContainer = _FindHostToolsContainer()
+	If IsObj($oHostContainer) Then Return $oHostContainer
 
-		; Controls might be hidden, show them by moving the mouse
-		Debug("Controls might be hidden. Moving mouse to show controls.", "VERBOSE")
-		Debug("Getting Zoom window.", "VERBOSE")
-		If Not _GetZoomWindow() Then Return False
+	; Controls might be hidden, show them by moving the mouse
+	Debug("Controls might be hidden. Moving mouse to show controls.", "VERBOSE")
+	Local $oResolvedZoomWindow = _GetZoomWindow()
+	If Not IsObj($oResolvedZoomWindow) Then Return False
+	_MoveMouseToStartOfElement($oZoomWindow, True)
 
-		Debug("Moving mouse to start of element: 'Zoom window'", "VERBOSE")
-		_MoveMouseToStartOfElement($oZoomWindow, True)
-		Debug("Clicking Host Tools button.", "VERBOSE")
-
-		; Menu not open, find and click the Host Tools button
-		Local $oHostToolsButton = FindElementByPartialName(GetUserSetting("HostToolsValue"), Default, $oZoomWindow)
-
-		; Scenario 1: Try to find Host Tools button directly
-		If IsObj($oHostToolsButton) Then
-			Debug("Host Tools button found directly; clicking.", "VERBOSE")
-			If Not _ClickElement($oHostToolsButton) Then
-				Debug(t("ERROR_FAILED_CLICK_ELEMENT") & ": 'Host Tools button'", "ERROR")
-				Return False
-			Else
-				Sleep(500)
-				$oHostMenu = FindElementByClassName("WCN_ModelessWnd", Default, $oZoomWindow)
-				Return $oHostMenu
-			EndIf
+	; First attempt: Host Tools button directly on toolbar
+	Local $aToolbarTypes[1] = [$UIA_ButtonControlTypeId]
+	Local $oHostToolsButton = FindElementByPartialName(GetUserSetting("HostToolsValue"), $aToolbarTypes, $oZoomWindow)
+	If IsObj($oHostToolsButton) Then
+		Debug("Host Tools button found directly; clicking.", "VERBOSE")
+		; Force click works better for the main toolbar Host Tools button (btn_security)
+		If Not _ClickElement($oHostToolsButton, True) Then
+			Debug("Direct Host Tools click failed; trying More-menu fallback.", "WARN")
 		Else
-			; Scenario 2: Try to find More menu, then Host Tools
-			Debug("Host Tools button not found, looking for 'More' button.", "VERBOSE")
-			Local $oMoreMenu = GetMoreMenu()
-			If IsObj($oMoreMenu) Then
-				; Now look for the Host Tools button in the More menu
-				Local $oHostToolsMenuItem = FindElementByPartialName(GetUserSetting("HostToolsValue"), Default, $oMoreMenu)
-				If IsObj($oHostToolsMenuItem) Then
-					Debug("Found Host Tools menu item. Hovering it to open submenu.", "VERBOSE")
-					If _HoverElement($oHostToolsMenuItem, 500) Then
-						; Return the now-open host menu
-						$oHostMenu = FindElementByClassName("WCN_ModelessWnd", Default, $oZoomWindow)
-						Return $oHostMenu
-					Else
-						Debug(t("ERROR_FAILED_CLICK_ELEMENT", GetUserSetting("HostToolsValue")), "ERROR")
-						Return False
-					EndIf
-				Else
-					Debug(t("ERROR_FAILED_CLICK_ELEMENT", GetUserSetting("HostToolsValue")), "ERROR")
-					Return False
-				EndIf
-			Else
-				Debug(t("ERROR_FAILED_CLICK_ELEMENT", GetUserSetting("MoreMeetingControlsValue")), "ERROR")
-				Return False
-			EndIf
+			Sleep(700)
+			$oHostContainer = _FindHostToolsContainer()
+			If IsObj($oHostContainer) Then Return $oHostContainer
+			Debug("Direct Host Tools click did not open a Host Tools container; trying More-menu fallback.", "VERBOSE")
 		EndIf
 	EndIf
 
-	; Return the now-open host menu
-	Return $oHostMenu
+	; Second attempt: open More menu then Host Tools
+	Debug("Host Tools button not found/active, looking for 'More' button.", "VERBOSE")
+	Local $oMoreMenu = GetMoreMenu()
+	Local $aMoreMenuTypes[3] = [$UIA_TabItemControlTypeId, $UIA_ButtonControlTypeId, $UIA_MenuItemControlTypeId]
+	If IsObj($oMoreMenu) Then
+		; In newer Zoom builds this is often a TabItem with a long localized name.
+		Local $oHostToolsMenuItem = FindElementByPartialName(GetUserSetting("HostToolsValue"), $aMoreMenuTypes, $oMoreMenu)
+		If IsObj($oHostToolsMenuItem) Then
+			Debug("Found Host Tools item in More. Clicking it.", "VERBOSE")
+			If Not _ClickElement($oHostToolsMenuItem, True) Then
+				; some builds require hover first then click
+				_HoverElement($oHostToolsMenuItem, 400)
+				_MoveMouseToStartOfElement($oHostToolsMenuItem, True)
+			EndIf
+			Sleep(700)
+			$oHostContainer = _FindHostToolsContainer()
+			If IsObj($oHostContainer) Then Return $oHostContainer
+		EndIf
+	Else
+		; Fallback: some layouts expose More content in a non-modeless window tree.
+		Local $oHostToolsFromZoom = FindElementByPartialName(GetUserSetting("HostToolsValue"), $aMoreMenuTypes, $oZoomWindow)
+		If IsObj($oHostToolsFromZoom) Then
+			Debug("Found Host Tools item from Zoom window tree fallback. Clicking it.", "VERBOSE")
+			_ClickElement($oHostToolsFromZoom, True)
+			Sleep(700)
+			$oHostContainer = _FindHostToolsContainer()
+			If IsObj($oHostContainer) Then Return $oHostContainer
+		EndIf
+	EndIf
+
+	Debug(t("ERROR_FAILED_CLICK_ELEMENT", GetUserSetting("HostToolsValue")), "ERROR")
+	Return False
 EndFunc   ;==>_OpenHostTools
 
 ; Internal function to find Host menu (used by cache)
 Func _FindHostMenuInternal()
-	Return FindElementByClassName("WCN_ModelessWnd", Default, $oZoomWindow)
+	Return _FindHostToolsContainer()
 EndFunc   ;==>_FindHostMenuInternal
 
 ; Closes the Host Tools menu by clicking on the main window

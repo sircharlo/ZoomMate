@@ -72,3 +72,16 @@ EndFunc   ;==>Debug
 Func UpdateTrayTooltip()
 	TraySetToolTip("ZoomMate: " & $g_StatusMsg)
 EndFunc   ;==>UpdateTrayTooltip
+
+
+; Reports a user-facing error in GUI/tray and optionally message box.
+Func ReportUserFacingError($message, $showPopup = True)
+	$g_StatusMsg = $message
+	UpdateTrayTooltip()
+	If $g_ErrorAreaLabel <> 0 Then
+		GUICtrlSetData($g_ErrorAreaLabel, $message)
+	EndIf
+	If $showPopup Then
+		MsgBox(16 + 262144, "ZoomMate", $message)
+	EndIf
+EndFunc   ;==>ReportUserFacingError
