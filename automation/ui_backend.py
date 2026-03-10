@@ -1,6 +1,9 @@
-"""Automation helpers for pyzoommate."""
+"""Compatibility shim for migrated backend module.
 
-from .ui_backend import (
+The implementation now lives under ``pyzoommate.automation.ui_backend``.
+"""
+
+from pyzoommate.automation.ui_backend import (  # noqa: F401
     AutomationBackend,
     ImageMatchElement,
     PyAutoGuiFallbackBackend,

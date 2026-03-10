@@ -1,4 +1,7 @@
-"""Automation helpers for pyzoommate."""
+"""Compatibility package for automation imports.
+
+Prefer importing from :mod:`pyzoommate.automation`.
+"""
 
 from .ui_backend import (
     AutomationBackend,
