@@ -18,6 +18,7 @@
 #include "UIAutomation.au3"
 #include "Utils.au3"
 #include "ZoomOperations.au3"
+#include "StateProfiler.au3"
 
 
 ; ================================================================================================
@@ -188,6 +189,7 @@ Func ShowConfigGUI()
 	Global $idQuitBtn = GUICtrlCreateButton(t("BTN_QUIT"), 120, $currentY, 100, 30)
 	$g_DiagnosticsBtn = GUICtrlCreateButton("UI Diagnostics", 230, $currentY, 110, 30)
 	$g_PathWizardBtn = GUICtrlCreateButton("Path Wizard", 350, $currentY, 100, 30)
+	$g_StateProfilerBtn = GUICtrlCreateButton("State Profiler", 460, $currentY, 110, 30)
 	$currentY += 30
 
 
@@ -200,6 +202,7 @@ Func ShowConfigGUI()
 	GUICtrlSetOnEvent($idQuitBtn, "QuitApp")
 	GUICtrlSetOnEvent($g_DiagnosticsBtn, "RunUIDiagnostics")
 	GUICtrlSetOnEvent($g_PathWizardBtn, "RunPathCaptureWizard")
+	GUICtrlSetOnEvent($g_StateProfilerBtn, "RunStateTrainingWizard")
 
 	; ================================================================================================
 	; DYNAMIC HEIGHT CALCULATION AND GUI RESIZING

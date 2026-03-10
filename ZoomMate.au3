@@ -57,6 +57,7 @@ Global Const $MF_BYCOMMAND = 0x00000000
 #include "Includes\ElementActions.au3"
 #include "Includes\ZoomOperations.au3"
 #include "Includes\ZoomPathEngine.au3"
+#include "Includes\StateProfiler.au3"
 #include "Includes\KeyboardShortcuts.au3"
 #include "Includes\Settings.au3"
 #include "Includes\MeetingAutomation.au3"

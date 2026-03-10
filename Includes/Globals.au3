@@ -57,6 +57,7 @@ Global $g_ActiveFieldForLookup = 0                 ; Currently active field for 
 Global $g_FieldLabels = ObjCreate("Scripting.Dictionary")  ; Maps field names to label control IDs
 Global $g_DiagnosticsBtn = 0
 Global $g_PathWizardBtn = 0
+Global $g_StateProfilerBtn = 0
 
 ; Day mapping containers for internationalization
 Global $g_DayLabelToNum = ObjCreate("Scripting.Dictionary")    ; Day name -> number (1-7)
