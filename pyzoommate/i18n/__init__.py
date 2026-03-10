@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+import sys
 from dataclasses import dataclass, field
 from pathlib import Path
 
@@ -34,7 +35,8 @@ def _parse_translation_file(path: Path) -> dict[str, str]:
 
 
 def _InitializeTranslations(language: str = "en") -> None:
-    includes_dir = Path(__file__).resolve().parents[2] / "Includes"
+    bundle_root = Path(getattr(sys, "_MEIPASS", Path(__file__).resolve().parents[2]))
+    includes_dir = bundle_root / "Includes"
     translations: dict[str, dict[str, str]] = {}
     for lang, filename in _LANG_FILES.items():
         file_path = includes_dir / filename
