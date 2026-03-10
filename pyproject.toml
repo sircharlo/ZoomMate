@@ -1,0 +1,13 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pyzoommate"
+version = "0.1.0"
+description = "Python migration of ZoomMate meeting automation"
+requires-python = ">=3.10"
+dependencies = []
+
+[project.scripts]
+pyzoommate = "pyzoommate.app:main"

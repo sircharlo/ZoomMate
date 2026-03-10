@@ -86,3 +86,31 @@ Captured outputs:
 - `zoom_state_profiles.txt` (visible named elements by control type)
 
 This is intended to make future checks deterministic (for example: detect if Participants panel is already open before trying to open it again).
+
+
+## Python migration status
+
+The Python replacement now lives in `pyzoommate/` with compatibility wrappers at repo root (`app.py`, `automation/`).
+
+Implemented parity areas:
+- Scene execution (`--scene prepost|prestart`) and scheduler loop.
+- Backward-compatible INI config reading/writing via `zoom_config.ini`.
+- Translation loading from `Includes/*.au3` language files.
+- Diagnostics outputs:
+  - `zoom_ui_diagnostics.txt`
+  - `zoom_state_profiles.ini`
+  - `zoom_state_profiles.txt`
+
+## Run (Python)
+
+```bash
+python app.py --scene prepost
+python app.py --scene prestart
+python -m pyzoommate.app --once
+```
+
+## Build Python executable
+
+```powershell
+./scripts/build_exe.ps1
+```

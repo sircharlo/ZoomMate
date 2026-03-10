@@ -5,11 +5,12 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass
 
-from .user_settings import USER_SETTINGS, get_user_setting
+from .i18n import _InitializeTranslations
+from .user_settings import USER_SETTINGS, load_all_settings
 
-_MEETING_ID_PATTERN = re.compile(r"^\d{9,12}$")
-_TIME_PATTERN = re.compile(r"^(?:[01]\d|2[0-3]):[0-5]\d$")
-_SHORTCUT_PATTERN = re.compile(r"^[A-Za-z0-9+\- ]+$")
+_MEETING_ID_PATTERN = re.compile(r"^\d{9,11}$")
+_TIME_PATTERN = re.compile(r"^(\d{1,2}):(\d{2})$")
+_SHORTCUT_PATTERN = re.compile(r"^[\^\!\+\#]*[a-zA-Z0-9]$")
 
 
 @dataclass
@@ -26,22 +27,57 @@ def _IsValidMeetingID(value: str) -> bool:
 
 
 def _IsValidTime(value: str) -> bool:
-    return bool(_TIME_PATTERN.fullmatch(value.strip()))
+    value = value.strip()
+    match = _TIME_PATTERN.fullmatch(value)
+    if not match:
+        return False
+    hour = int(match.group(1))
+    minute = int(match.group(2))
+    return 0 <= hour <= 23 and 0 <= minute <= 59
 
 
 def _IsValidKeyboardShortcut(value: str) -> bool:
-    return bool(_SHORTCUT_PATTERN.fullmatch(value.strip())) and "+" in value
+    value = value.strip()
+    if not value:
+        return True
+    if not _SHORTCUT_PATTERN.fullmatch(value):
+        return False
+    return any(symbol in value for symbol in "^!+#")
+
+
+def _default_settings() -> dict[str, str]:
+    return {
+        "Language": "en",
+        "SnapZoomSide": "Disabled",
+        "MidweekDay": "3",
+        "MidweekTime": "19:00",
+        "WeekendDay": "7",
+        "WeekendTime": "10:00",
+        "HostToolsValue": "Host tools",
+        "ParticipantValue": "Participant",
+        "MuteAllValue": "Mute All",
+        "MoreMeetingControlsValue": "More meeting controls",
+        "YesValue": "Yes",
+        "UncheckedValue": "Unchecked",
+        "CurrentlyUnmutedValue": "Currently unmuted",
+        "UnmuteAudioValue": "Unmute my audio",
+        "StopVideoValue": "Stop my video",
+        "StartVideoValue": "Start my video",
+        "ZoomSecurityUnmuteValue": "Unmute themselves",
+        "ZoomSecurityShareScreenValue": "Share screen",
+    }
 
 
 def LoadMeetingConfig() -> MeetingConfig:
-    """Load core meeting configuration from user settings."""
+    loaded = load_all_settings(defaults=_default_settings())
+    _InitializeTranslations(loaded.get("Language", "en"))
 
     return MeetingConfig(
-        midweek_day=int(get_user_setting("MidweekDay", "3")),
-        midweek_time=get_user_setting("MidweekTime", "19:00"),
-        weekend_day=int(get_user_setting("WeekendDay", "7")),
-        weekend_time=get_user_setting("WeekendTime", "10:00"),
-        meeting_id=get_user_setting("MeetingID", ""),
+        midweek_day=int(loaded.get("MidweekDay", "3")),
+        midweek_time=loaded.get("MidweekTime", "19:00"),
+        weekend_day=int(loaded.get("WeekendDay", "7")),
+        weekend_time=loaded.get("WeekendTime", "10:00"),
+        meeting_id=loaded.get("MeetingID", ""),
     )
 
 
