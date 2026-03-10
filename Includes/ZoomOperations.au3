@@ -50,10 +50,12 @@ Func _OpenHostTools()
 	_MoveMouseToStartOfElement($oZoomWindow, True)
 
 	; First attempt: Host Tools button directly on toolbar
-	Local $oHostToolsButton = FindElementByPartialName(GetUserSetting("HostToolsValue"), Default, $oZoomWindow)
+	Local $aToolbarTypes[1] = [$UIA_ButtonControlTypeId]
+	Local $oHostToolsButton = FindElementByPartialName(GetUserSetting("HostToolsValue"), $aToolbarTypes, $oZoomWindow)
 	If IsObj($oHostToolsButton) Then
 		Debug("Host Tools button found directly; clicking.", "VERBOSE")
-		If Not _ClickElement($oHostToolsButton) Then
+		; Force click works better for the main toolbar Host Tools button (btn_security)
+		If Not _ClickElement($oHostToolsButton, True) Then
 			Debug("Direct Host Tools click failed; trying More-menu fallback.", "WARN")
 		Else
 			Sleep(700)
@@ -66,15 +68,27 @@ Func _OpenHostTools()
 	; Second attempt: open More menu then Host Tools
 	Debug("Host Tools button not found/active, looking for 'More' button.", "VERBOSE")
 	Local $oMoreMenu = GetMoreMenu()
+	Local $aMoreMenuTypes[3] = [$UIA_TabItemControlTypeId, $UIA_ButtonControlTypeId, $UIA_MenuItemControlTypeId]
 	If IsObj($oMoreMenu) Then
-		Local $oHostToolsMenuItem = FindElementByPartialName(GetUserSetting("HostToolsValue"), Default, $oMoreMenu)
+		; In newer Zoom builds this is often a TabItem with a long localized name.
+		Local $oHostToolsMenuItem = FindElementByPartialName(GetUserSetting("HostToolsValue"), $aMoreMenuTypes, $oMoreMenu)
 		If IsObj($oHostToolsMenuItem) Then
 			Debug("Found Host Tools item in More. Clicking it.", "VERBOSE")
-			If Not _ClickElement($oHostToolsMenuItem) Then
+			If Not _ClickElement($oHostToolsMenuItem, True) Then
 				; some builds require hover first then click
 				_HoverElement($oHostToolsMenuItem, 400)
 				_MoveMouseToStartOfElement($oHostToolsMenuItem, True)
 			EndIf
+			Sleep(700)
+			$oHostContainer = _FindHostToolsContainer()
+			If IsObj($oHostContainer) Then Return $oHostContainer
+		EndIf
+	Else
+		; Fallback: some layouts expose More content in a non-modeless window tree.
+		Local $oHostToolsFromZoom = FindElementByPartialName(GetUserSetting("HostToolsValue"), $aMoreMenuTypes, $oZoomWindow)
+		If IsObj($oHostToolsFromZoom) Then
+			Debug("Found Host Tools item from Zoom window tree fallback. Clicking it.", "VERBOSE")
+			_ClickElement($oHostToolsFromZoom, True)
 			Sleep(700)
 			$oHostContainer = _FindHostToolsContainer()
 			If IsObj($oHostContainer) Then Return $oHostContainer
