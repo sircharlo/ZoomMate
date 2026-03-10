@@ -20,11 +20,89 @@ Func _FindSecuritySettingInternal($sSetting, $oHostMenu)
 	Return FindElementByPartialName($sSetting, Default, $oHostMenu)
 EndFunc   ;==>_FindSecuritySettingInternal
 
+; Finds first matching element from a pipe-separated list of partial names.
+Func _FindElementByAnyName($sCandidates, $aControlTypes, $oParent)
+	Local $aNames = StringSplit($sCandidates, "|", 2)
+	For $i = 0 To UBound($aNames) - 1
+		Local $name = StringStripWS($aNames[$i], 3)
+		If $name = "" Then ContinueLoop
+		Local $o = FindElementByPartialName($name, $aControlTypes, $oParent)
+		If IsObj($o) Then Return $o
+	Next
+	Return 0
+EndFunc   ;==>_FindElementByAnyName
+
+; Sets "Who can share" via Share Options -> Host tools for sharing flow.
+; @param $bAllowParticipants - True to allow all participants, False for host-only
+Func SetShareScreenPermission($bAllowParticipants)
+	If Not EnsureZoomMainWindow() Then Return False
+
+	; Step 1: open Share options menu
+	Local $aMenuItemTypes[1] = [$UIA_MenuItemControlTypeId]
+	Local $shareOptionsCandidates = GetUserSetting("ShareOptionsValue")
+	If $shareOptionsCandidates = "" Then $shareOptionsCandidates = "Option partage|Share options"
+	Local $oShareOptions = _FindElementByAnyName($shareOptionsCandidates, $aMenuItemTypes, $oZoomWindow)
+	If Not IsObj($oShareOptions) Then
+		ReportUserFacingError("Share options button/menu not found.")
+		Return False
+	EndIf
+	If Not _ClickElement($oShareOptions, True) Then Return False
+	Sleep(350)
+
+	; Step 2: click Host tools for sharing item in popup menu
+	Local $oShareMenu = FindElementByClassName("WCN_ModelessWnd", Default, $oZoomWindow)
+	If Not IsObj($oShareMenu) Then
+		ReportUserFacingError("Share options menu did not open.")
+		Return False
+	EndIf
+	Local $hostToolsShareCandidates = GetUserSetting("HostToolsForShareValue")
+	If $hostToolsShareCandidates = "" Then $hostToolsShareCandidates = "Outils de l’hôte pour le partage|Host tools for sharing"
+	Local $oHostToolsShare = _FindElementByAnyName($hostToolsShareCandidates, $aMenuItemTypes, $oShareMenu)
+	If Not IsObj($oHostToolsShare) Then
+		ReportUserFacingError("'Host tools for sharing' item not found.")
+		Return False
+	EndIf
+	If Not _ClickElement($oHostToolsShare, True) Then Return False
+	Sleep(500)
+
+	; Step 3: select desired item from 'Who can share' combobox/list
+	Local $aComboTypes[1] = [$UIA_ComboBoxControlTypeId]
+	Local $comboCandidates = GetUserSetting("WhoCanShareComboValue")
+	If $comboCandidates = "" Then $comboCandidates = "Qui peut partager|Who can share"
+	Local $oWhoCanShareCombo = _FindElementByAnyName($comboCandidates, $aComboTypes, $oZoomWindow)
+	If IsObj($oWhoCanShareCombo) Then _ClickElement($oWhoCanShareCombo, True)
+	Sleep(300)
+
+	Local $aListItemTypes[1] = [$UIA_ListItemControlTypeId]
+	Local $targetCandidates = ""
+	If $bAllowParticipants Then
+		$targetCandidates = GetUserSetting("WhoCanShareParticipantsValue")
+		If $targetCandidates = "" Then $targetCandidates = "Tous les participants|All participants"
+	Else
+		$targetCandidates = GetUserSetting("WhoCanShareHostOnlyValue")
+		If $targetCandidates = "" Then $targetCandidates = "Hôte seulement|Host only"
+	EndIf
+	Local $oTarget = _FindElementByAnyName($targetCandidates, $aListItemTypes, $oZoomWindow)
+	If Not IsObj($oTarget) Then
+		ReportUserFacingError("Could not find target 'Who can share' option: " & $targetCandidates)
+		Return False
+	EndIf
+	If Not _ClickElement($oTarget, True) Then Return False
+
+	Return True
+EndFunc   ;==>SetShareScreenPermission
+
 ; Sets a security setting to the desired state (enabled/disabled)
 ; @param $sSetting - Setting name to modify
 ; @param $bDesired - Desired state (True=enabled, False=disabled)
 Func SetSecuritySetting($sSetting, $bDesired)
 	Debug(t("INFO_SETTING_SECURITY", $sSetting), "INFO")
+
+	; Share-screen permission is now under Share Options -> Host tools for sharing -> Who can share.
+	If $sSetting = GetUserSetting("ZoomSecurityShareScreenValue") Then
+		Return SetShareScreenPermission($bDesired)
+	EndIf
+
 	Local $oSetting = EnsureSecurityToggleVisible($sSetting)
 	If Not IsObj($oSetting) Then Return False
 

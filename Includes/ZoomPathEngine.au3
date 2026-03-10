@@ -62,7 +62,7 @@ Func EnsureHostToolsParticipantsScope()
 
 	Local $oParticipants = FindElementByPartialName(GetUserSetting("ParticipantValue"), Default, $oHostTools)
 	If IsObj($oParticipants) Then
-		_ClickElement($oParticipants)
+		_ClickElement($oParticipants, True)
 		Sleep(350)
 	EndIf
 

@@ -52,6 +52,12 @@ Func LoadMeetingConfig()
 	$g_UserSettings.Add("StartVideoValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "StartVideoValue", "")))
 	$g_UserSettings.Add("ZoomSecurityUnmuteValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "ZoomSecurityUnmuteValue", "")))
 	$g_UserSettings.Add("ZoomSecurityShareScreenValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "ZoomSecurityShareScreenValue", "")))
+	; Optional advanced labels for share-screen permission flow
+	$g_UserSettings.Add("ShareOptionsValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "ShareOptionsValue", "")))
+	$g_UserSettings.Add("HostToolsForShareValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "HostToolsForShareValue", "")))
+	$g_UserSettings.Add("WhoCanShareComboValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "WhoCanShareComboValue", "")))
+	$g_UserSettings.Add("WhoCanShareHostOnlyValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "WhoCanShareHostOnlyValue", "")))
+	$g_UserSettings.Add("WhoCanShareParticipantsValue", _UTF8ToString(IniRead($CONFIG_FILE, "ZoomStrings", "WhoCanShareParticipantsValue", "")))
 	$g_UserSettings.Add("KeyboardShortcut", _UTF8ToString(IniRead($CONFIG_FILE, "General", "KeyboardShortcut", "")))
 
 	; Window snapping preference (Disabled|Left|Right)
