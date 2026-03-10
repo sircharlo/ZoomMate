@@ -1,11 +1,15 @@
-"""System tray placeholders replacing tray portions of Includes/GUI.au3."""
+"""Tray event shim with explicit no-op logging for debuggability."""
 
 from __future__ import annotations
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 
 def _InitTray() -> None:
-    """Initialize tray icon/menu (placeholder)."""
+    logger.info("tray_init no-op")
 
 
 def TrayEvent() -> None:
-    """Dispatch tray event loop tick (placeholder)."""
+    logger.debug("tray_event tick")
