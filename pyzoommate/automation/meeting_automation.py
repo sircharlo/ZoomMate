@@ -7,9 +7,11 @@ import time
 import webbrowser
 from datetime import datetime
 
+from ..diagnostics.path_wizard import ResolveSecurityToggle
 from ..globals import STATE
 from ..user_settings import get_user_setting
 from .zoom_operations import FocusZoomWindow, _GetZoomWindow, _OpenParticipantsPanel
+from .zoom_operations import _backend as _AUTOMATION_BACKEND
 
 logger = logging.getLogger(__name__)
 
@@ -18,34 +20,134 @@ MEETING_START_WARNING_MINUTES = 1
 
 
 def _SnapZoomWindowToSide() -> bool:
-    # Window snap is left as a no-op for now unless backend-specific support is added.
-    return True
+    side = get_user_setting("SnapZoomSide", "Disabled").strip().lower()
+    if side not in {"left", "right"}:
+        return True
+
+    if not FocusZoomWindow():
+        return False
+
+    try:
+        import pyautogui
+
+        pyautogui.hotkey("win", side)
+        return True
+    except Exception:
+        return False
 
 
 def SetSecuritySetting(setting_name: str, desired: bool) -> bool:
     logger.info("action=set_security setting=%s desired=%s", setting_name, desired)
+    setting = ResolveSecurityToggle(setting_name)
+    if setting is None:
+        return False
+
+    is_enabled: bool | None = None
+    try:
+        toggle_iface = getattr(setting, "iface_toggle", None)
+        if toggle_iface is not None and hasattr(toggle_iface, "CurrentToggleState"):
+            is_enabled = int(toggle_iface.CurrentToggleState) == 1
+    except Exception:
+        is_enabled = None
+
+    if is_enabled is None:
+        label = getattr(getattr(setting, "element_info", None), "name", "") or ""
+        unchecked_value = get_user_setting("UncheckedValue").strip().lower()
+        if unchecked_value:
+            is_enabled = unchecked_value not in label.lower()
+
+    if is_enabled is not None and is_enabled == desired:
+        return True
+
+    if not _AUTOMATION_BACKEND.click(setting, force=True):
+        return False
+    time.sleep(0.25)
     return True
 
 
 def MuteAll() -> bool:
     logger.info("action=mute_all")
-    return True
+    if not _OpenParticipantsPanel():
+        return False
+
+    zoom_window = _GetZoomWindow()
+    if zoom_window is None:
+        return False
+
+    mute_all = _AUTOMATION_BACKEND.find_by_partial_name(get_user_setting("MuteAllValue"), scope=zoom_window)
+    if mute_all is None or not _AUTOMATION_BACKEND.click(mute_all):
+        return False
+
+    dialog = _AUTOMATION_BACKEND.find_window(class_name="zChangeNameWndClass")
+    if dialog is None:
+        return True
+    yes_button = _AUTOMATION_BACKEND.find_by_partial_name(get_user_setting("YesValue"), scope=dialog)
+    return yes_button is not None and _AUTOMATION_BACKEND.click(yes_button)
 
 
 def ToggleFeed(feed_type: str, desired_state: bool) -> bool:
     logger.info("action=toggle_feed feed=%s desired=%s", feed_type, desired_state)
-    return True
+    zoom_window = _GetZoomWindow()
+    if zoom_window is None:
+        return False
+
+    _AUTOMATION_BACKEND.move_mouse_to_element_start(zoom_window, click=False)
+
+    feed = feed_type.strip().lower()
+    if feed == "video":
+        enabled_button = _AUTOMATION_BACKEND.find_by_partial_name(get_user_setting("StopVideoValue"), scope=zoom_window)
+        disabled_button = _AUTOMATION_BACKEND.find_by_partial_name(get_user_setting("StartVideoValue"), scope=zoom_window)
+    elif feed == "audio":
+        enabled_button = _AUTOMATION_BACKEND.find_by_partial_name(get_user_setting("CurrentlyUnmutedValue"), scope=zoom_window)
+        disabled_button = _AUTOMATION_BACKEND.find_by_partial_name(get_user_setting("UnmuteAudioValue"), scope=zoom_window)
+    else:
+        return False
+
+    currently_enabled = enabled_button is not None
+    if currently_enabled == desired_state:
+        return True
+
+    target = enabled_button if currently_enabled else disabled_button
+    if target is None:
+        return False
+    return _AUTOMATION_BACKEND.click(target)
 
 
 def PulseSpotlightHostVideo(duration_ms: int = 5000) -> bool:
     logger.info("action=pulse_spotlight duration_ms=%s", duration_ms)
+    if not _OpenParticipantsPanel():
+        time.sleep(duration_ms / 1000)
+        return False
+
+    zoom_window = _GetZoomWindow()
+    if zoom_window is None:
+        time.sleep(duration_ms / 1000)
+        return False
+
+    spotlight = _AUTOMATION_BACKEND.find_by_partial_name("spotlight", scope=zoom_window)
+    if spotlight is None or not _AUTOMATION_BACKEND.click(spotlight, force=True):
+        time.sleep(duration_ms / 1000)
+        return False
+
     time.sleep(duration_ms / 1000)
+    remove_spotlight = _AUTOMATION_BACKEND.find_by_partial_name("remove spotlight", scope=zoom_window)
+    if remove_spotlight is not None:
+        _AUTOMATION_BACKEND.click(remove_spotlight, force=True)
     return True
 
 
 def EnsureGalleryView() -> bool:
     logger.info("action=ensure_gallery_view")
-    return True
+    if not FocusZoomWindow():
+        return False
+    try:
+        import pyautogui
+
+        pyautogui.hotkey("alt", "f2")
+        time.sleep(0.3)
+        return True
+    except Exception:
+        return False
 
 
 def _LaunchZoom() -> bool:

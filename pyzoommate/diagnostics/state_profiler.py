@@ -7,6 +7,7 @@ from datetime import datetime
 from pathlib import Path
 
 from ..diagnostics.path_wizard import EnsureHostToolsVisible, EnsureZoomMainWindow
+from ..automation.zoom_operations import _FindParticipantsPanelInternal
 
 STATE_PROFILE_INI = Path("zoom_state_profiles.ini")
 STATE_PROFILE_TXT = Path("zoom_state_profiles.txt")
@@ -16,7 +17,7 @@ def GetCurrentZoomStateFlags() -> dict[str, bool]:
     return {
         "zoom_window_visible": EnsureZoomMainWindow(),
         "host_tools_visible": EnsureHostToolsVisible(),
-        "participants_panel_visible": True,
+        "participants_panel_visible": _FindParticipantsPanelInternal() is not None,
     }
 
 
